@@ -30,11 +30,11 @@
     }
 
     .widget {
-      width: 220px;              /* 👈 small width */
+      width: 220px;              /* narrow widget */
       background: var(--card);
       color: var(--text);
       border-radius: 18px;
-      padding: 14px 16px 16px;
+      padding: 14px 16px 12px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
     }
 
@@ -58,6 +58,14 @@
       font-weight: 600;
     }
 
+    .settings-toggle {
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 6px;
+      user-select: none;
+      color: var(--muted);
+    }
+
     .time {
       text-align: center;
       font-size: 32px;
@@ -69,7 +77,7 @@
       text-align: center;
       font-size: 11px;
       color: var(--muted);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .controls {
@@ -112,6 +120,59 @@
       color: var(--text);
     }
 
+    .settings-panel {
+      display: none;
+      margin-bottom: 6px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.75);
+    }
+
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .settings-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-row input {
+      width: 56px;
+      padding: 2px 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(156, 163, 175, 0.6);
+      background: #020617;
+      color: var(--text);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .settings-actions {
+      margin-top: 4px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .settings-apply {
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      border: none;
+      cursor: pointer;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .settings-apply:hover {
+      background: rgba(249, 115, 115, 0.25);
+    }
+
     .footnote {
       text-align: center;
       font-size: 10px;
@@ -124,7 +185,24 @@
   <div class="widget">
     <div class="heading">
       <span>Pomodoro</span>
-      <span id="mode-pill" class="mode-pill">Focus • 25</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span id="mode-pill" class="mode-pill">Focus • 25</span>
+        <span id="settings-toggle" class="settings-toggle">⚙</span>
+      </div>
+    </div>
+
+    <div id="settings-panel" class="settings-panel">
+      <div class="settings-row">
+        <span>Focus (min)</span>
+        <input type="number" id="work-input" min="1" max="180" value="25" />
+      </div>
+      <div class="settings-row">
+        <span>Break (min)</span>
+        <input type="number" id="break-input" min="1" max="60" value="5" />
+      </div>
+      <div class="settings-actions">
+        <button id="apply-settings" class="settings-apply">Apply</button>
+      </div>
     </div>
 
     <div id="time-display" class="time">25:00</div>
@@ -135,26 +213,32 @@
       <button id="reset-btn" class="btn-ghost">Reset</button>
     </div>
 
-    <div class="footnote">25 / 5 • auto switch</div>
+    <div class="footnote">Custom • auto switch</div>
   </div>
 
   <script>
-    // --- settings ---
-    const WORK_MIN = 25;
-    const BREAK_MIN = 5;
+    // ---- default settings ----
+    let workMin = 25;
+    let breakMin = 5;
 
-    // --- state ---
+    // ---- state ----
     let isRunning = false;
     let isWork = true;
-    let remainingSeconds = WORK_MIN * 60;
+    let remainingSeconds = workMin * 60;
     let intervalId = null;
 
-    // --- elements ---
+    // ---- elements ----
     const timeDisplay = document.getElementById("time-display");
     const subtext = document.getElementById("subtext");
     const modePill = document.getElementById("mode-pill");
     const toggleBtn = document.getElementById("toggle-btn");
     const resetBtn = document.getElementById("reset-btn");
+
+    const settingsToggle = document.getElementById("settings-toggle");
+    const settingsPanel = document.getElementById("settings-panel");
+    const workInput = document.getElementById("work-input");
+    const breakInput = document.getElementById("break-input");
+    const applySettingsBtn = document.getElementById("apply-settings");
 
     function formatTime(seconds) {
       const m = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -166,11 +250,11 @@
       timeDisplay.textContent = formatTime(remainingSeconds);
 
       if (isWork) {
-        modePill.textContent = `Focus • ${WORK_MIN}`;
-        subtext.textContent = `Next: ${BREAK_MIN} min break`;
+        modePill.textContent = `Focus • ${workMin}`;
+        subtext.textContent = `Next: ${breakMin} min break`;
       } else {
-        modePill.textContent = `Break • ${BREAK_MIN}`;
-        subtext.textContent = `Next: ${WORK_MIN} min focus`;
+        modePill.textContent = `Break • ${breakMin}`;
+        subtext.textContent = `Next: ${workMin} min focus`;
       }
 
       toggleBtn.textContent = isRunning ? "Pause" : "Start";
@@ -178,7 +262,7 @@
 
     function switchMode() {
       isWork = !isWork;
-      remainingSeconds = (isWork ? WORK_MIN : BREAK_MIN) * 60;
+      remainingSeconds = (isWork ? workMin : breakMin) * 60;
       updateUI();
     }
 
@@ -187,7 +271,6 @@
         remainingSeconds--;
         updateUI();
       } else {
-        // when timer hits 0, switch mode automatically
         switchMode();
       }
     }
@@ -216,7 +299,32 @@
     resetBtn.addEventListener("click", () => {
       pauseTimer();
       isWork = true;
-      remainingSeconds = WORK_MIN * 60;
+      remainingSeconds = workMin * 60;
+      updateUI();
+    });
+
+    // ---- settings behavior ----
+    settingsToggle.addEventListener("click", () => {
+      const visible = settingsPanel.style.display === "block";
+      settingsPanel.style.display = visible ? "none" : "block";
+    });
+
+    applySettingsBtn.addEventListener("click", () => {
+      const newWork = parseInt(workInput.value, 10);
+      const newBreak = parseInt(breakInput.value, 10);
+
+      if (!isNaN(newWork) && newWork > 0) {
+        workMin = newWork;
+      }
+      if (!isNaN(newBreak) && newBreak > 0) {
+        breakMin = newBreak;
+      }
+
+      // applying settings resets to a fresh focus session
+      pauseTimer();
+      isWork = true;
+      remainingSeconds = workMin * 60;
+      settingsPanel.style.display = "none";
       updateUI();
     });
 
